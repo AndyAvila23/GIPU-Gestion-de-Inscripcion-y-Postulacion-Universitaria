@@ -1,6 +1,0 @@
-[
-    {   "Email": "admin@system.com", 
-    "Contrase\u00f1a": "admin", "Nombre": "Admin", "Apellido": "Sistema", "C.I.": ".", 
-    "Direcci\u00f3n": ".", "Tel\u00e9fono": ".", "G\u00e9nero": "Prefiero no decirlo"},
-    {"Email": "hola@system.com", "Contrase\u00f1a": "1234", "Nombre": "asas", "Apellido": "sasas", "C.I.": "asasas", "Direcci\u00f3n": "sasas", "Tel\u00e9fono": "sasas", "G\u00e9nero": "Prefiero no decirlo"}
-]

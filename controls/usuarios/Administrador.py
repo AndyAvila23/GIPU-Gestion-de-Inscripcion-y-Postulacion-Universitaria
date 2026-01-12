@@ -205,7 +205,7 @@ class Admin_menu:
     def Mostrar_oferta_academica(self):
         print("\nMostrar Oferta Académica")
         print("-" * 80)
-        archivo_oferta = os.path.join("data", "oferta.csv")
+        archivo_oferta = os.path.join("data", "universidad", "oferta.csv")
         mostrar_csv_formateado(archivo_oferta)
         print("-" * 80)
         input("Presione Enter para continuar...")

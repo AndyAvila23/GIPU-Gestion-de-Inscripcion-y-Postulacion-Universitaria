@@ -1,18 +1,47 @@
-from utils.tkinter import ventana_default, bloqueo_pantalla_completa_default
-from utils.tkinter import PhotoImage, messagebox, ttk
-from utils.tkinter import *
+import tkinter as tk
+from tkinter import PhotoImage, messagebox, ttk
+from tkinter import *
 from views.Iniciar_Sesion import inicio_sesion
-from views.Registrarse import registrarse
 import os
 
-class menu_inicio(ventana_default, bloqueo_pantalla_completa_default):
-    """
-    Ventana principal del sistema, hereda de ventana_default.
-    """
+class menu_inicio(tk.Tk):
     def __init__(self, iconos=None):
-        super().__init__(titulo="GIPU - Gestión de Inscripción y Postulación Universitaria", ancho=900, alto=600, iconos= iconos)
+        super().__init__()
         self.logo = None
         self._crear_contenido()
+        self.title("GIPU - Gestión de Inscripción y Postulación Universitaria")
+
+        # Dimensiones centradas en pantalla
+        self.ancho = 900
+        self.alto = 600
+        self._centrar_ventana()
+
+        # Fondo y estilos generales
+        self.config(bg="#f0f0f0")
+        self._configurar_estilos()
+
+    # ─────────────────────────────
+    # Posicionar ventana
+    # ─────────────────────────────
+    def _centrar_ventana(self):
+        pantalla_ancho = self.winfo_screenwidth()
+        pantalla_alto = self.winfo_screenheight()
+        x = (pantalla_ancho - self.ancho) // 2
+        y = (pantalla_alto - self.alto) // 2
+        self.geometry(f"{self.ancho}x{self.alto}+{x}+{y}")
+
+    # ─────────────────────────────
+    # Configuracion de estilos base
+    # ─────────────────────────────
+    def _configurar_estilos(self):
+        estilo = ttk.Style(self)
+        estilo.theme_use("clam")
+        estilo.configure("TButton", font=("Arial", 11), padding=5, background="#cca14c")
+        estilo.configure("TLabel", font=("Arial", 11), background = "#ffffff")
+        estilo.configure("TFrame", background="#ffffff")
+        self.attributes("-fullscreen", False)
+        self.attributes("-topmost", False)
+        self.resizable(False, False)
 
     def _crear_contenido(self):
         # Frame principal
@@ -42,8 +71,7 @@ class menu_inicio(ventana_default, bloqueo_pantalla_completa_default):
         # Botones de acción (Registrarse / Iniciar Sesión)
         botones_frame = ttk.Frame(header)
         botones_frame.pack(side="right", padx=10)
-        ttk.Button(botones_frame, text="Registrarse", width=15, command=self._registrarse).pack(side="left", padx=5)
-        ttk.Button(botones_frame, text="Iniciar Sesión", width=15, command=self._iniciar_sesion).pack(side="left", padx=5)
+        ttk.Button(botones_frame, text="Iniciar Sesión", width=15, command=self._iniciar_sesion).pack(side="left", padx=15)
         # ─────────────────────────────
         # CUERPO PRINCIPAL
         # ─────────────────────────────
@@ -72,11 +100,13 @@ class menu_inicio(ventana_default, bloqueo_pantalla_completa_default):
     # ─────────────────────────────
     # MÉTODOS DE ACCIÓN
     # ─────────────────────────────
-    def _registrarse(self):
-        registrarse(self)
 
     def _iniciar_sesion(self):
         inicio_sesion(self)
-    
-    def _cerrar_ventana(self):
-        self.destroy()
+
+    # ─────────────────────────────
+    # Abrir la ventana
+    # ─────────────────────────────
+    def run(self):
+        #Inicia el loop principal.
+        self.mainloop()
