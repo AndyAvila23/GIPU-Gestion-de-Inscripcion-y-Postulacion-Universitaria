@@ -1,334 +1,255 @@
-
-import os
 import json
+import os
 import csv
+from datetime import datetime
 
-def mostrar_csv_formateado(ruta_csv, max_width=30):
-    if not os.path.exists(ruta_csv):
-        print(f"Archivo {ruta_csv} no encontrado.")
-        return
-    with open(ruta_csv, 'r', encoding='utf-8') as f:
-        lector = csv.reader(f, delimiter=';')
-        filas = list(lector)
-        if not filas:
-            print("(Archivo CSV vacío)")
-            return
-        
-        # Calcular ancho máximo por columna considerando truncamiento
-        num_cols = max(len(fila) for fila in filas)
-        col_widths = [0] * num_cols
-        for fila in filas:
-            for i, col in enumerate(fila):
-                texto = col.strip()
-                texto_corto = (texto[:max_width] + '...') if len(texto) > max_width else texto
-                col_widths[i] = max(col_widths[i], len(texto_corto))
-        
-        # Imprimir filas con columnas alineadas y truncadas si es necesario
-        for fila in filas:
-            fila_a_imprimir = []
-            for i in range(num_cols):
-                if i < len(fila):
-                    texto = fila[i].strip()
-                    if len(texto) > max_width:
-                        texto = texto[:max_width] + '...'
-                else:
-                    texto = ''
-                fila_a_imprimir.append(texto.ljust(col_widths[i]))
-            print(" | ".join(fila_a_imprimir))
-
-
-class adminVentana:
-    def __init__(self, master=None, iconos=None):
-        self.logo = None
-        self._crear_contenido()
-        self.abrir_modal()
-
-    def _crear_contenido(self):
-        print("GIPU - Panel de Administración")
-        print("=" * 50)
-        logo_path = os.path.join("assets", "img", "Logo_GIPU.png")
-        if os.path.exists(logo_path):
-            self.logo = "[Logo cargado]"
-            print(self.logo)
-        else:
-            self.logo = "[Logo no encontrado]"
-            print(self.logo)
-        print("GIPU")
-        print("Panel de Administración")
-        print("-" * 30)
-        print("Presione Enter para abrir herramientas...")
-        input()
-
-    def _contenedor(self):
-        archivo_oferta = os.path.join("data", "oferta.csv")
-        print("\nContenido de oferta.csv:")
-        print("-" * 80)
-        mostrar_csv_formateado(archivo_oferta)
-        print("-" * 80)
-
-    def abrir_modal(self):
-        herramienta_modal(self)
-
-
-class herramienta_modal:
-    def __init__(self, master=None):
-        self._crear_contenido()
-
-    def _crear_contenido(self):
-        while True:
-            print("\nHerramientas de Administración")
-            print("=" * 40)
-            print("1. Gestionar Inscripciones")
-            print("2. Gestionar Postulaciones")
-            print("3. Gestionar Usuarios")
-            print("4. Gestionar Administradores")
-            print("5. Mostrar Oferta Académica")
-            print("6. Cerrar")
-            opcion = input("Seleccione una opción (1-6): ").strip()
-
-            if opcion == "1":
-                Admin_menu().Gestionar_inscripciones()
-            elif opcion == "2":
-                Admin_menu().Gestionar_postulaciones()
-            elif opcion == "3":
-                Admin_menu().Gestionar_usuarios()
-            elif opcion == "4":
-                Admin_menu().Gestionar_administradores()
-            elif opcion == "5":
-                Admin_menu().Mostrar_oferta_academica()
-            elif opcion == "6":
-                print("Cerrando herramientas...")
-                break
-            else:
-                print("Opción inválida. Intente de nuevo.")
-
-
-class Admin_menu:
-    def __init__(self, frame=None):
-        self.frame = frame
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        self.archivo_usuarios = os.path.join(base_dir, "data", "datos_registro.json")
-        self.archivo_administradores = os.path.join(base_dir, "data", "admin.json")
-
-    def Gestionar_inscripciones(self):
-        print("\nGestionar Inscripciones")
-        print("-" * 25)
-        print("Funcionalidad de gestionar inscripciones.")
-        input("Presione Enter para continuar...")
-
-    def Gestionar_postulaciones(self):
-        print("\nGestionar Postulaciones")
-        print("-" * 25)
-        
-        while True:
-            print("Ingrese los datos para la postulación o presione 'S' para salir sin guardar.")
-            
-            periodo = input("Ingrese el periodo (o 'S' para salir): ").strip()
-            if periodo.upper() == 'S':
-                print("Salida de Gestionar Postulaciones sin guardar datos.")
-                break
-            
-            porcentaje = input("Ingrese porcentaje de abanderados (o 'S' para salir): ").strip()
-            if porcentaje.upper() == 'S':
-                print("Salida de Gestionar Postulaciones sin guardar datos.")
-                break
-            
-            if not periodo:
-                print("El periodo no puede estar vacío. Intente nuevamente.")
-                continue
-            if not porcentaje or not porcentaje.replace('.', '', 1).isdigit():
-                print("El porcentaje debe ser un número válido. Intente nuevamente.")
-                continue
-            
-            print(f"Periodo establecido: {periodo}")
-            print(f"Porcentaje modificado: {porcentaje}")
-            
-            input("Datos guardados. Presione Enter para continuar...")
-            break  # Salir después de completar con éxito
-
-    def Gestionar_usuarios(self):
-        data = self._leer_json(self.archivo_usuarios)
-        while True:
-            print("\nGestionar Usuarios")
-            print("=" * 30)
-            print("1. Listar usuarios")
-            print("2. Buscar usuario")
-            print("3. Agregar usuario")
-            print("4. Modificar usuario")
-            print("5. Eliminar usuario")
-            print("6. Volver al menú anterior")
-            opcion = input("Seleccione una opción (1-6): ").strip()
-            
-            if opcion == "1":
-                self._listar(data)
-            elif opcion == "2":
-                self._buscar(data)
-            elif opcion == "3":
-                self._agregar(data, self.archivo_usuarios)
-            elif opcion == "4":
-                self._modificar(data, self.archivo_usuarios)
-            elif opcion == "5":
-                self._eliminar(data, self.archivo_usuarios)
-            elif opcion == "6":
-                break
-            else:
-                print("Opción inválida. Intente de nuevo.")
-
-    def Gestionar_administradores(self):
-        data = self._leer_json(self.archivo_administradores)
-        while True:
-            print("\nGestionar Administradores")
-            print("=" * 30)
-            print("1. Listar administradores")
-            print("2. Buscar administrador")
-            print("3. Agregar administrador")
-            print("4. Modificar administrador")
-            print("5. Eliminar administrador")
-            print("6. Volver al menú anterior")
-            opcion = input("Seleccione una opción (1-6): ").strip()
-            
-            if opcion == "1":
-                self._listar(data)
-            elif opcion == "2":
-                self._buscar(data)
-            elif opcion == "3":
-                self._agregar(data, self.archivo_administradores)
-            elif opcion == "4":
-                self._modificar(data, self.archivo_administradores)
-            elif opcion == "5":
-                self._eliminar(data, self.archivo_administradores)
-            elif opcion == "6":
-                break
-            else:
-                print("Opción inválida. Intente de nuevo.")
-
-    def Mostrar_oferta_academica(self):
-        print("\nMostrar Oferta Académica")
-        print("-" * 80)
-        archivo_oferta = os.path.join("data", "universidad", "oferta.csv")
-        mostrar_csv_formateado(archivo_oferta)
-        print("-" * 80)
-        input("Presione Enter para continuar...")
-
-    # Métodos auxiliares para JSON
+class Administrador:
+    def __init__(self, CI="", Nombre="", Apellido="", Correo="", Contraseña="", 
+                 Dirección=".", Teléfono=".", Género="Prefiero no decirlo", Rol="Sistema"):
+        self.CI = CI
+        self.Nombre = Nombre
+        self.Apellido = Apellido
+        self.Correo = Correo
+        self.Contraseña = Contraseña
+        self.Dirección = Dirección
+        self.Teléfono = Teléfono
+        self.Género = Género
+        self.Rol = Rol
     
-    def _leer_json(self, archivo):
-        carpeta = os.path.dirname(archivo)
-        if not os.path.exists(carpeta):
-            os.makedirs(carpeta)
-        if os.path.exists(archivo):
-            with open(archivo, "r", encoding="utf-8") as f:
-                try:
-                    data = json.load(f)
-                    if isinstance(data, dict):
-                        data = [data]
-                    elif not isinstance(data, list):
-                        data = []
-                    return data
-                except json.JSONDecodeError:
-                    print(f"Error leyendo {archivo}. Formato JSON inválido.")
+    def to_dict(self):
+        """Convierte el administrador a diccionario"""
+        return {
+            "C.I.": self.CI,
+            "Nombre": self.Nombre,
+            "Apellido": self.Apellido,
+            "Correo": self.Correo,
+            "Contraseña": self.Contraseña,
+            "Dirección": self.Dirección,
+            "Teléfono": self.Teléfono,
+            "Género": self.Género,
+            "Rol": self.Rol
+        }
+    
+    @staticmethod
+    def from_dict(data):
+        """Crea un administrador desde un diccionario"""
+        return Administrador(
+            CI=data.get("C.I.", ""),
+            Nombre=data.get("Nombre", ""),
+            Apellido=data.get("Apellido", ""),
+            Correo=data.get("Correo", ""),
+            Contraseña=data.get("Contraseña", ""),
+            Dirección=data.get("Dirección", "."),
+            Teléfono=data.get("Teléfono", "."),
+            Género=data.get("Género", "Prefiero no decirlo"),
+            Rol=data.get("Rol", "Sistema")
+        )
+
+class GestorAdministradores:
+    def __init__(self):
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.admin_file = os.path.join(self.base_dir, "..", "..", "data", "registros", "admin.json")
+        self._crear_archivo_si_no_existe()
+    
+    def _crear_archivo_si_no_existe(self):
+        """Crea el archivo admin.json si no existe con el admin por defecto"""
+        os.makedirs(os.path.dirname(self.admin_file), exist_ok=True)
+        
+        if not os.path.exists(self.admin_file):
+            admin_por_defecto = Administrador(
+                CI=".",
+                Nombre="Admin",
+                Apellido="Sistema",
+                Correo="admin@system.com",
+                Contraseña="admin",
+                Dirección=".",
+                Teléfono=".",
+                Género="Prefiero no decirlo",
+                Rol="Sistema"
+            )
+            
+            with open(self.admin_file, 'w', encoding='utf-8') as f:
+                json.dump([admin_por_defecto.to_dict()], f, indent=4, ensure_ascii=False)
+    
+    def _leer_admin_json(self):
+        """Lee y devuelve la lista de administradores del archivo JSON"""
+        try:
+            if not os.path.exists(self.admin_file):
+                return []
+            
+            with open(self.admin_file, 'r', encoding='utf-8') as f:
+                contenido = f.read().strip()
+                if not contenido:
                     return []
-        else:
-            with open(archivo, "w", encoding="utf-8") as f:
-                json.dump([], f)
+                
+                # Intentar cargar como lista
+                try:
+                    data = json.loads(contenido)
+                    if isinstance(data, dict):
+                        return [Administrador.from_dict(data)]
+                    elif isinstance(data, list):
+                        return [Administrador.from_dict(item) for item in data]
+                    else:
+                        return []
+                except json.JSONDecodeError:
+                    # Si falla, crear administrador por defecto
+                    return [Administrador()]
+        except Exception as e:
+            print(f"Error al leer admin.json: {e}")
             return []
-
-    def _guardar_json(self, archivo, data):
-        with open(archivo, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-
-    def _listar(self, data):
-        if not data:
-            print("No hay registros disponibles.")
-        else:
-            for i, item in enumerate(data, 1):
-                print(f"{i}.")
-                for k, v in item.items():
-                    print(f"   {k}: {v}")
-                print("-" * 30)
-        input("Presione Enter para continuar...")
-
-    def _buscar(self, data):
-        clave = input("Ingrese término de búsqueda (ej. nombre o ID): ").strip().lower()
-        resultados = []
-        for item in data:
-            if any(clave in str(valor).lower() for valor in item.values()):
-                resultados.append(item)
-        if resultados:
-            print(f"Se encontraron {len(resultados)} resultados:")
-            for res in resultados:
-                for k, v in res.items():
-                    print(f"  {k}: {v}")
-                print("-" * 20)
-        else:
-            print("No se encontraron resultados.")
-        input("Presione Enter para continuar...")
-
-    def _agregar(self, data, archivo):
-        print("Agregar nuevo registro")
-        nuevo = {}
-        while True:
-            clave = input("Ingrese el nombre del campo (deje vacío para terminar): ").strip()
-            if clave == "":
-                break
-            valor = input(f"Ingrese el valor para '{clave}': ").strip()
-            nuevo[clave] = valor
-        if nuevo:
-            data.append(nuevo)
-            self._guardar_json(archivo, data)
-            print("Registro agregado correctamente.")
-        else:
-            print("No se agregó ningún registro.")
-        input("Presione Enter para continuar...")
-
-    def _modificar(self, data, archivo):
-        if not data:
-            print("No hay registros para modificar.")
-            input("Presione Enter para continuar...")
-            return
-        self._listar(data)
+    
+    def _escribir_admin_json(self, administradores):
+        """Escribe la lista de administradores al archivo JSON"""
         try:
-            index = int(input("Ingrese el número del registro a modificar: ").strip()) - 1
-            if 0 <= index < len(data):
-                registro = data[index]
-                print(f"Registro actual:")
-                for k, v in registro.items():
-                    print(f"   {k}: {v}")
-                print("Ingrese nuevos valores (deje vacío para conservar valor actual):")
-                for clave in list(registro.keys()):
-                    nuevo_valor = input(f"Nuevo valor para '{clave}' (actual: '{registro[clave]}'): ").strip()
-                    if nuevo_valor != "":
-                        registro[clave] = nuevo_valor
-                self._guardar_json(archivo, data)
-                print("Registro modificado correctamente.")
-            else:
-                print("Número de registro inválido.")
-        except ValueError:
-            print("Entrada inválida.")
-        input("Presione Enter para continuar...")
-
-    def _eliminar(self, data, archivo):
-        if not data:
-            print("No hay registros para eliminar.")
-            input("Presione Enter para continuar...")
-            return
-        self._listar(data)
+            with open(self.admin_file, 'w', encoding='utf-8') as f:
+                json.dump([admin.to_dict() for admin in administradores], f, indent=4, ensure_ascii=False)
+            return True
+        except Exception as e:
+            print(f"Error al escribir admin.json: {e}")
+            return False
+    
+    def obtener_todos(self):
+        """Obtiene todos los administradores"""
+        return self._leer_admin_json()
+    
+    def obtener_por_ci(self, ci):
+        """Obtiene un administrador por su C.I."""
+        administradores = self._leer_admin_json()
+        for admin in administradores:
+            if admin.CI == ci:
+                return admin
+        return None
+    
+    def obtener_por_correo(self, correo):
+        """Obtiene un administrador por su correo"""
+        administradores = self._leer_admin_json()
+        for admin in administradores:
+            if admin.Correo.lower() == correo.lower():
+                return admin
+        return None
+    
+    def agregar(self, datos_admin):
+        """Agrega un nuevo administrador"""
         try:
-            index = int(input("Ingrese el número del registro a eliminar: ").strip()) - 1
-            if 0 <= index < len(data):
-                eliminado = data.pop(index)
-                self._guardar_json(archivo, data)
-                print("Registro eliminado:")
-                for k, v in eliminado.items():
-                    print(f"   {k}: {v}")
+            # Validar que no exista ya el correo o CI
+            administradores = self._leer_admin_json()
+            
+            for admin in administradores:
+                if admin.Correo.lower() == datos_admin['Correo'].lower():
+                    return False, "Ya existe un administrador con ese correo"
+                if admin.CI == datos_admin['C.I.'] and datos_admin['C.I.'] != ".":
+                    return False, "Ya existe un administrador con esa identificación"
+            
+            # Crear nuevo administrador
+            nuevo_admin = Administrador(
+                CI=datos_admin.get('C.I.', ''),
+                Nombre=datos_admin.get('Nombre', ''),
+                Apellido=datos_admin.get('Apellido', ''),
+                Correo=datos_admin.get('Correo', ''),
+                Contraseña=datos_admin.get('Contraseña', ''),
+                Dirección=datos_admin.get('Dirección', '.'),
+                Teléfono=datos_admin.get('Teléfono', '.'),
+                Género=datos_admin.get('Género', 'Prefiero no decirlo'),
+                Rol=datos_admin.get('Rol', 'Administrador')
+            )
+            
+            administradores.append(nuevo_admin)
+            
+            if self._escribir_admin_json(administradores):
+                return True, f"Administrador {nuevo_admin.Nombre} agregado exitosamente"
             else:
-                print("Número de registro inválido.")
-        except ValueError:
-            print("Entrada inválida.")
-        input("Presione Enter para continuar...")
-
-    def _contenedor_oferta(self):
-        pass
-
-# Ejecutar directamente:
-adminVentana()
+                return False, "Error al guardar el administrador"
+                
+        except Exception as e:
+            return False, f"Error al agregar administrador: {str(e)}"
+    
+    def modificar(self, datos_admin):
+        """Modifica un administrador existente"""
+        try:
+            administradores = self._leer_admin_json()
+            
+            for i, admin in enumerate(administradores):
+                if admin.CI == datos_admin['C.I.']:
+                    # Actualizar datos
+                    administradores[i].Nombre = datos_admin.get('Nombre', admin.Nombre)
+                    administradores[i].Apellido = datos_admin.get('Apellido', admin.Apellido)
+                    administradores[i].Correo = datos_admin.get('Correo', admin.Correo)
+                    administradores[i].Contraseña = datos_admin.get('Contraseña', admin.Contraseña)
+                    administradores[i].Dirección = datos_admin.get('Dirección', admin.Dirección)
+                    administradores[i].Teléfono = datos_admin.get('Teléfono', admin.Teléfono)
+                    administradores[i].Género = datos_admin.get('Género', admin.Género)
+                    administradores[i].Rol = datos_admin.get('Rol', admin.Rol)
+                    
+                    if self._escribir_admin_json(administradores):
+                        return True, f"Administrador {administradores[i].Nombre} modificado exitosamente"
+                    else:
+                        return False, "Error al guardar los cambios"
+            
+            return False, "Administrador no encontrado"
+                
+        except Exception as e:
+            return False, f"Error al modificar administrador: {str(e)}"
+    
+    def eliminar(self, ci):
+        """Elimina un administrador por su C.I."""
+        try:
+            if ci == ".":
+                return False, "No se puede eliminar al administrador principal del sistema"
+            
+            administradores = self._leer_admin_json()
+            administradores_filtrados = []
+            admin_eliminado = None
+            
+            for admin in administradores:
+                if admin.CI == ci:
+                    admin_eliminado = admin
+                else:
+                    administradores_filtrados.append(admin)
+            
+            if not admin_eliminado:
+                return False, "Administrador no encontrado"
+            
+            if self._escribir_admin_json(administradores_filtrados):
+                return True, f"Administrador {admin_eliminado.Nombre} eliminado exitosamente"
+            else:
+                return False, "Error al eliminar el administrador"
+                
+        except Exception as e:
+            return False, f"Error al eliminar administrador: {str(e)}"
+    
+    def verificar_credenciales(self, correo, contraseña):
+        """Verifica las credenciales de un administrador"""
+        administradores = self._leer_admin_json()
+        
+        for admin in administradores:
+            if admin.Correo.lower() == correo.lower() and admin.Contraseña == contraseña:
+                return True, admin
+        
+        return False, None
+    
+    def generar_contraseña_segura(self, longitud=10):
+        """Genera una contraseña segura"""
+        import random
+        import string
+        
+        caracteres = string.ascii_letters + string.digits + "!@#$%^&*"
+        return ''.join(random.choice(caracteres) for _ in range(longitud))
+    
+    def cambiar_contraseña(self, ci, nueva_contraseña):
+        """Cambia la contraseña de un administrador"""
+        try:
+            administradores = self._leer_admin_json()
+            
+            for i, admin in enumerate(administradores):
+                if admin.CI == ci:
+                    administradores[i].Contraseña = nueva_contraseña
+                    
+                    if self._escribir_admin_json(administradores):
+                        return True, "Contraseña cambiada exitosamente"
+                    else:
+                        return False, "Error al guardar la nueva contraseña"
+            
+            return False, "Administrador no encontrado"
+                
+        except Exception as e:
+            return False, f"Error al cambiar contraseña: {str(e)}"
