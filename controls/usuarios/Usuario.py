@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 import csv
 import os
 
@@ -10,14 +10,6 @@ class Usuario(ABC):
         self.CI = CI
         self.email = email
         self.contrasena = contrasena
-    
-    @abstractmethod
-    def registrarse(self):
-        pass
-    
-    @abstractmethod
-    def iniciar_sesion(self):
-        pass
     
     @staticmethod
     def verificar_registro_unico(email):

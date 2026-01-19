@@ -5,6 +5,7 @@ import csv
 import json
 from datetime import datetime, timedelta
 from controls.usuarios.Administrador import GestorAdministradores
+from controls.OfertaAcademica import GestorOfertas
 
 class AdminVentana(tk.Tk):
     def __init__(self, parent=None, iconos=None):
@@ -44,17 +45,31 @@ class AdminVentana(tk.Tk):
         self.var_admin_rol = tk.StringVar(value="Administrador")
         self.var_admin_show_password = tk.BooleanVar(value=False)
         
+        
+        self.gestor_ofertas = GestorOfertas()
         # Variables para oferta académica
         self.var_ies_id = tk.StringVar()
+        self.var_ies_id_sniese = tk.StringVar(value="1016")
         self.var_ies_nombre = tk.StringVar()
+        self.var_pro_nombre = tk.StringVar(value="MANABÍ")
+        self.var_can_nombre = tk.StringVar()
+        self.var_prq_nombre = tk.StringVar()
         self.var_carrera_nombre = tk.StringVar()
         self.var_area_nombre = tk.StringVar()
         self.var_subarea_nombre = tk.StringVar()
-        self.var_nivel = tk.StringVar()
-        self.var_modalidad = tk.StringVar()
-        self.var_jornada = tk.StringVar()
+        self.var_nivel = tk.StringVar(value="TERCER NIVEL")
+        self.var_modalidad = tk.StringVar(value="PRESENCIAL")
+        self.var_jornada = tk.StringVar(value="NO APLICA JORNADA")
+        self.var_ofa_titulo = tk.StringVar()
+        self.var_ofa_id = tk.StringVar()
+        self.var_cus_id = tk.StringVar()
+        self.var_cupos_nivelacion = tk.StringVar(value="0")
+        self.var_cupos_primer_semestre = tk.StringVar(value="0")
+        self.var_cupos_pc = tk.StringVar(value="0")
         self.var_cupos_total = tk.StringVar()
-        self.var_focalizada = tk.StringVar()
+        self.var_tipo_cupo = tk.StringVar(value="CUPOS_NIVELACIÓN")
+        self.var_focalizada = tk.StringVar(value="N")
+        self.var_id_registro = tk.StringVar()
         
         self.var_file_path = tk.StringVar()
         
@@ -493,22 +508,63 @@ class AdminVentana(tk.Tk):
         
         return periodos_planificados
     
-    def crear_postulacion(self, datos_postulacion):
+    def crear_postulacion(self):
         """Crea una nueva configuración de postulación"""
         try:
-            periodo_id = datos_postulacion.get('periodo_id')
-            intenciones = datos_postulacion.get('intenciones')
-            fecha_limite = datos_postulacion.get('fecha_limite')
-            hora_limite = datos_postulacion.get('hora_limite')
+            # Obtener datos del formulario
+            periodo_seleccionado = self.var_postulacion_periodo.get()
+            intenciones = self.var_postulacion_intenciones.get()
+            fecha_limite = self.var_postulacion_fecha_limite.get()
+            hora_limite = self.var_postulacion_hora_limite.get()
+            
+            if not periodo_seleccionado:
+                messagebox.showerror("Error", "Seleccione un período académico")
+                return
+            
+            if not intenciones:
+                messagebox.showerror("Error", "Ingrese el número de intenciones")
+                return
+            
+            try:
+                intenciones_num = int(intenciones)
+                if intenciones_num < 1 or intenciones_num > 5:
+                    raise ValueError
+            except ValueError:
+                messagebox.showerror("Error", "El número de intenciones debe ser entre 1 y 5")
+                return
+            
+            if not fecha_limite:
+                messagebox.showerror("Error", "Ingrese la fecha límite")
+                return
+            
+            # Validar fecha límite
+            try:
+                fecha_limite_dt = datetime.strptime(fecha_limite, "%Y-%m-%d")
+                if fecha_limite_dt.date() <= datetime.now().date():
+                    messagebox.showerror("Error", "La fecha límite debe ser posterior a hoy")
+                    return
+            except ValueError:
+                messagebox.showerror("Error", "Formato de fecha inválido. Use YYYY-MM-DD")
+                return
+            
+            # Extraer ID del período de la selección del combobox
+            import re
+            match = re.search(r'\(ID: (\d+)\)', periodo_seleccionado)
+            if not match:
+                messagebox.showerror("Error", "No se pudo extraer el ID del período")
+                return
+            
+            periodo_id = match.group(1)
             
             # Validar que no exista ya una postulación para este período
-            configs = self.obtener_postulaciones_config()
+            configs = self.admin_menu.obtener_postulaciones_config()
             for config in configs:
                 if config.get('periodo_id') == str(periodo_id):
-                    return {"success": False, "message": "Ya existe una postulación para este período"}
+                    messagebox.showerror("Error", "Ya existe una postulación para este período")
+                    return
             
             # Obtener información del período
-            periodos = self.obtener_periodos()
+            periodos = self.admin_menu.obtener_periodos()
             periodo_nombre = ""
             for periodo in periodos:
                 if periodo.get('id') == str(periodo_id):
@@ -516,7 +572,8 @@ class AdminVentana(tk.Tk):
                     break
             
             if not periodo_nombre:
-                return {"success": False, "message": "Período no encontrado"}
+                messagebox.showerror("Error", "Período no encontrado")
+                return
             
             # Obtener siguiente ID
             if configs:
@@ -544,7 +601,7 @@ class AdminVentana(tk.Tk):
                             intenciones, 'ACTIVA', datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
             
             # Guardar en configuraciones
-            with open(self.postulaciones_config_file, 'a', newline='', encoding='utf-8') as f:
+            with open(self.admin_menu.postulaciones_config_file, 'a', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f, delimiter=';')
                 writer.writerow([
                     new_id, periodo_id, periodo_nombre, intenciones,
@@ -554,15 +611,18 @@ class AdminVentana(tk.Tk):
                 ])
             
             # Cambiar estado del período a ACTIVO
-            self.actualizar_estado_periodo(periodo_id, 'ACTIVO')
+            self.admin_menu.actualizar_estado_periodo(periodo_id, 'ACTIVO')
             
-            return {
-                "success": True, 
-                "message": f"Postulación creada exitosamente. Archivo: {archivo_nombre}"
-            }
+            messagebox.showinfo("Éxito", 
+                            f"Postulación creada exitosamente para el período {periodo_nombre}.\n"
+                            f"Archivo: {archivo_nombre}")
+            
+            # Actualizar las listas
+            self.actualizar_lista_postulaciones()
+            self.actualizar_combo_periodos()
             
         except Exception as e:
-            return {"success": False, "message": f"Error al crear postulación: {str(e)}"}
+            messagebox.showerror("Error", f"Error al crear postulación: {str(e)}")
     
     def eliminar_postulacion(self):
         """Elimina una postulación seleccionada"""
@@ -1434,7 +1494,7 @@ class AdminVentana(tk.Tk):
         self.mostrar_todos_administradores()
         self.nuevo_administrador()  # Iniciar en modo nuevo
     
-        # ─────────────────────────────
+    # ─────────────────────────────
     # MÉTODOS PARA GESTIÓN DE ADMINISTRADORES
     # ─────────────────────────────
     
@@ -1499,7 +1559,7 @@ class AdminVentana(tk.Tk):
             text=f"Total de administradores: {len(administradores)}",
             fg="green"
         )
-    
+
     def actualizar_treeview_administradores(self, administradores):
         """Actualiza el treeview con la lista de administradores"""
         # Limpiar treeview
@@ -1509,7 +1569,7 @@ class AdminVentana(tk.Tk):
         # Insertar administradores
         for i, admin in enumerate(administradores, 1):
             # Determinar tipo de documento basado en el formato de C.I.
-            ci = admin.get('C.I.', '')
+            ci = admin.CI  # Acceder al atributo directamente, no con .get()
             if ci == ".":
                 tipo_doc = "Sistema"
             elif ci.isdigit() and len(ci) == 10:
@@ -1521,10 +1581,10 @@ class AdminVentana(tk.Tk):
                 i,
                 tipo_doc,
                 ci,
-                admin.get('Nombre', ''),
-                admin.get('Apellido', ''),
-                admin.get('Correo', ''),
-                admin.get('Rol', 'Sistema'),
+                admin.Nombre,  # Acceder directamente
+                admin.Apellido,  # Acceder directamente
+                admin.Correo,  # Acceder directamente
+                admin.Rol,  # Acceder directamente
                 'Activo'
             ))
 
@@ -1800,8 +1860,10 @@ class AdminVentana(tk.Tk):
             except Exception as e:
                 print(f"Error al cargar administradores: {e}")
     
+    # ─────────────────────────────
+    # MÉTODOS PARA OFERTAS
+    # ─────────────────────────────
     def _crear_tab_oferta(self):
-        # Frame principal con scrollbar
         main_frame = tk.Frame(self.tab_oferta, bg="#ffffff")
         main_frame.pack(fill="both", expand=True)
         
@@ -1832,65 +1894,214 @@ class AdminVentana(tk.Tk):
         content_frame.pack(fill="both", expand=True)
         
         tk.Label(content_frame, text="Gestión de Oferta Académica", 
-                 font=("Arial", 16, "bold"), fg="#2a4f80", bg="#ffffff").pack(anchor="w", pady=(0, 20))
+                font=("Arial", 16, "bold"), fg="#2a4f80", bg="#ffffff").pack(anchor="w", pady=(0, 20))
         
-        # Formulario para crear oferta (campos iguales a oferta.csv)
-        form_frame = tk.LabelFrame(content_frame, text="Crear Nueva Oferta Académica", 
-                                  bg="#ffffff", fg="#2a4f80", font=("Arial", 12, "bold"),
-                                  padx=15, pady=15)
-        form_frame.pack(fill="x", pady=(0, 20))
+        # Frame con dos columnas
+        columns_frame = tk.Frame(content_frame, bg="#ffffff")
+        columns_frame.pack(fill="both", expand=True)
         
-        # Campos del formulario según oferta.csv
-        campos = [
-            ("IES ID:", self.var_ies_id),
-            ("IES Nombre:", self.var_ies_nombre),
-            ("Carrera:", self.var_carrera_nombre),
-            ("Área:", self.var_area_nombre),
-            ("Subárea:", self.var_subarea_nombre),
-            ("Nivel:", self.var_nivel),
-            ("Modalidad:", self.var_modalidad),
-            ("Jornada:", self.var_jornada),
-            ("Total Cupos:", self.var_cupos_total),
-            ("Focalizada (S/N):", self.var_focalizada)
-        ]
+        # --- COLUMNA IZQUIERDA: FORMULARIO ---
+        left_frame = tk.Frame(columns_frame, bg="#ffffff", width=400)
+        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
         
-        for i, (label, variable) in enumerate(campos):
-            tk.Label(form_frame, text=label, bg="#ffffff").grid(row=i, column=0, sticky="w", pady=5)
-            ttk.Entry(form_frame, textvariable=variable, width=30).grid(row=i, column=1, sticky="w", padx=10, pady=5)
+        # Formulario para crear oferta
+        form_frame = tk.LabelFrame(left_frame, text="Crear Nueva Oferta Académica", 
+                                bg="#ffffff", fg="#2a4f80", font=("Arial", 12, "bold"),
+                                padx=15, pady=15)
+        form_frame.pack(fill="both", expand=True, pady=(0, 20))
         
-        # Botones
+        # Campos del formulario organizados por secciones
+        
+        # Sección 1: Información de la Institución
+        tk.Label(form_frame, text="INFORMACIÓN DE LA INSTITUCIÓN", 
+                bg="#ffffff", font=("Arial", 11, "bold"), fg="#2a4f80").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+        
+        row = 1
+        
+        # IES ID (no editable)
+        tk.Label(form_frame, text="IES ID:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        tk.Label(form_frame, text="Asignado automáticamente", bg="#ffffff", fg="#666666", 
+                relief="sunken", width=20).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # IES ID SNIESE (no editable)
+        tk.Label(form_frame, text="IES ID SNIESE:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        tk.Label(form_frame, text="1016", bg="#ffffff", fg="#666666", 
+                relief="sunken", width=20).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Universidad (combobox editable)
+        tk.Label(form_frame, text="Universidad (IES_NOMBRE_INSTIT):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        universidades = self.gestor_ofertas.obtener_valores_unicos('ies_nombre_instit')
+        self.combo_universidad = ttk.Combobox(form_frame, textvariable=self.var_ies_nombre, 
+                                            values=universidades, state="normal", width=30)
+        self.combo_universidad.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Sección 2: Ubicación
+        tk.Label(form_frame, text="UBICACIÓN", 
+                bg="#ffffff", font=("Arial", 11, "bold"), fg="#2a4f80").grid(row=row, column=0, columnspan=2, sticky="w", pady=(10, 10))
+        row += 1
+        
+        # Provincia
+        tk.Label(form_frame, text="Provincia (PRO_NOMBRE):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        provincias = self.gestor_ofertas.obtener_valores_unicos('pro_nombre')
+        self.combo_provincia = ttk.Combobox(form_frame, textvariable=self.var_pro_nombre, 
+                                        values=provincias, state="normal", width=30)
+        self.combo_provincia.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Cantón
+        tk.Label(form_frame, text="Cantón (CAN_NOMBRE):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        cantones = self.gestor_ofertas.obtener_valores_unicos('can_nombre')
+        self.combo_canton = ttk.Combobox(form_frame, textvariable=self.var_can_nombre, 
+                                        values=cantones, state="normal", width=30)
+        self.combo_canton.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Parroquia
+        tk.Label(form_frame, text="Parroquia (PRQ_NOMBRE):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        parroquias = self.gestor_ofertas.obtener_valores_unicos('prq_nombre')
+        self.combo_parroquia = ttk.Combobox(form_frame, textvariable=self.var_prq_nombre, 
+                                        values=parroquias, state="normal", width=30)
+        self.combo_parroquia.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Sección 3: Información de la Carrera
+        tk.Label(form_frame, text="INFORMACIÓN DE LA CARRERA", 
+                bg="#ffffff", font=("Arial", 11, "bold"), fg="#2a4f80").grid(row=row, column=0, columnspan=2, sticky="w", pady=(10, 10))
+        row += 1
+        
+        # Carrera
+        tk.Label(form_frame, text="Carrera (CAR_NOMBRE_CARRERA):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        carreras = self.gestor_ofertas.obtener_valores_unicos('car_nombre_carrera')
+        self.combo_carrera = ttk.Combobox(form_frame, textvariable=self.var_carrera_nombre, 
+                                        values=carreras, state="normal", width=30)
+        self.combo_carrera.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Área
+        tk.Label(form_frame, text="Área (AREA_NOMBRE):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        areas = self.gestor_ofertas.obtener_valores_unicos('area_nombre')
+        self.combo_area = ttk.Combobox(form_frame, textvariable=self.var_area_nombre, 
+                                    values=areas, state="normal", width=30)
+        self.combo_area.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Subárea
+        tk.Label(form_frame, text="Subárea (SUBAREA_NOMBRE):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        subareas = self.gestor_ofertas.obtener_valores_unicos('subarea_nombre')
+        self.combo_subarea = ttk.Combobox(form_frame, textvariable=self.var_subarea_nombre, 
+                                        values=subareas, state="normal", width=30)
+        self.combo_subarea.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Nivel
+        tk.Label(form_frame, text="Nivel (NIVEL):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        niveles = self.gestor_ofertas.obtener_valores_unicos('nivel')
+        self.combo_nivel = ttk.Combobox(form_frame, textvariable=self.var_nivel, 
+                                    values=niveles, state="normal", width=30)
+        self.combo_nivel.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Modalidad (combobox con opciones fijas)
+        tk.Label(form_frame, text="Modalidad (MODALIDAD):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        self.combo_modalidad = ttk.Combobox(form_frame, textvariable=self.var_modalidad, 
+                                        values=["PRESENCIAL", "VIRTUAL", "HÍBRIDA", "SEMI-PRESENCIAL"], 
+                                        state="readonly", width=30)
+        self.combo_modalidad.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Jornada (combobox con opciones fijas)
+        tk.Label(form_frame, text="Jornada (JORNADA):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        self.combo_jornada = ttk.Combobox(form_frame, textvariable=self.var_jornada, 
+                                        values=["MATUTINA", "VESPERTINA", "NOCTURNA", "NO APLICA JORNADA"], 
+                                        state="readonly", width=30)
+        self.combo_jornada.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Sección 4: Cupos
+        tk.Label(form_frame, text="CUPOS", 
+                bg="#ffffff", font=("Arial", 11, "bold"), fg="#2a4f80").grid(row=row, column=0, columnspan=2, sticky="w", pady=(10, 10))
+        row += 1
+        
+        # Cupos de Nivelación
+        tk.Label(form_frame, text="Cupos de Nivelación:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        ttk.Entry(form_frame, textvariable=self.var_cupos_nivelacion, width=15).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Cupos de Primer Semestre
+        tk.Label(form_frame, text="Cupos de Primer Semestre:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        ttk.Entry(form_frame, textvariable=self.var_cupos_primer_semestre, width=15).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Cupos de PC
+        tk.Label(form_frame, text="Cupos de PC:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        ttk.Entry(form_frame, textvariable=self.var_cupos_pc, width=15).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Total de Cupos (no editable)
+        tk.Label(form_frame, text="Total de Cupos:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        tk.Label(form_frame, textvariable=self.var_cupos_total, bg="#ffffff", fg="#666666", 
+                relief="sunken", width=15).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Tipo de Cupo (no editable)
+        tk.Label(form_frame, text="Tipo de Cupo:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        tk.Label(form_frame, textvariable=self.var_tipo_cupo, bg="#ffffff", fg="#666666", 
+                relief="sunken", width=20).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Focalizada (combobox S/N)
+        tk.Label(form_frame, text="Focalizada (S/N):", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        self.combo_focalizada = ttk.Combobox(form_frame, textvariable=self.var_focalizada, 
+                                            values=["S", "N"], state="readonly", width=10)
+        self.combo_focalizada.grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # ID Registro (no editable)
+        tk.Label(form_frame, text="ID Registro:", bg="#ffffff", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+        tk.Label(form_frame, text="Asignado automáticamente", bg="#ffffff", fg="#666666", 
+                relief="sunken", width=20).grid(row=row, column=1, sticky="w", pady=5, padx=(0, 20))
+        row += 1
+        
+        # Botones del formulario
         btn_frame = tk.Frame(form_frame, bg="#ffffff")
-        btn_frame.grid(row=len(campos), column=0, columnspan=2, pady=15)
+        btn_frame.grid(row=row, column=0, columnspan=2, pady=20)
         
         ttk.Button(btn_frame, text="Crear Oferta", 
-                  command=self.crear_oferta).pack(side="left", padx=5)
+                command=self.crear_oferta_completa, width=15).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Limpiar", 
-                  command=self.limpiar_form_oferta).pack(side="left", padx=5)
+                command=self.limpiar_form_oferta, width=10).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Calcular Cupos", 
+                command=self.calcular_cupos, width=15).pack(side="left", padx=5)
         
-        # Lista de ofertas
-        lista_frame = tk.LabelFrame(content_frame, text="Ofertas Académicas Registradas", 
-                                   bg="#ffffff", fg="#2a4f80", font=("Arial", 12, "bold"),
-                                   padx=15, pady=15)
-        lista_frame.pack(fill="both", expand=True, pady=(0, 20))
+        # --- COLUMNA DERECHA: LISTA DE OFERTAS ---
+        right_frame = tk.Frame(columns_frame, bg="#ffffff")
+        right_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
         
-        # Treeview para ofertas (más columnas)
+        lista_frame = tk.LabelFrame(right_frame, text="Ofertas Académicas Registradas", 
+                                bg="#ffffff", fg="#2a4f80", font=("Arial", 12, "bold"),
+                                padx=15, pady=15)
+        lista_frame.pack(fill="both", expand=True)
+        
+        # Treeview para ofertas (columnas específicas)
         columns = (
-            "ID", "IES ID", "IES Nombre", "Carrera", "Área", "Subárea",
+            "ID", "Universidad", "Carrera", "Área", "Subárea",
             "Nivel", "Modalidad", "Jornada", "Total Cupos", "Focalizada"
         )
-        self.tree_ofertas = ttk.Treeview(lista_frame, columns=columns, show="headings", height=10)
+        self.tree_ofertas = ttk.Treeview(lista_frame, columns=columns, show="headings", height=15)
         
         # Configurar anchos de columnas
         column_widths = {
             "ID": 50,
-            "IES ID": 70,
-            "IES Nombre": 150,
+            "Universidad": 200,
             "Carrera": 180,
-            "Área": 120,
-            "Subárea": 100,
-            "Nivel": 80,
-            "Modalidad": 80,
-            "Jornada": 80,
+            "Área": 150,
+            "Subárea": 120,
+            "Nivel": 100,
+            "Modalidad": 100,
+            "Jornada": 100,
             "Total Cupos": 80,
             "Focalizada": 70
         }
@@ -1916,12 +2127,297 @@ class AdminVentana(tk.Tk):
         action_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         
         ttk.Button(action_frame, text="Eliminar Oferta", 
-                  command=self.eliminar_oferta).pack(side="left", padx=5)
+                command=self.eliminar_oferta, width=15).pack(side="left", padx=5)
         ttk.Button(action_frame, text="Actualizar Lista", 
-                  command=self.actualizar_lista_ofertas).pack(side="left", padx=5)
+                command=self.actualizar_lista_ofertas, width=15).pack(side="left", padx=5)
+        ttk.Button(action_frame, text="Ver Detalles", 
+                command=self.ver_detalles_oferta, width=15).pack(side="right", padx=5)
         
         # Cargar lista inicial de ofertas
         self.actualizar_lista_ofertas()
+        self.actualizar_comboboxes()
+
+    def actualizar_comboboxes(self):
+        """Actualiza los comboboxes con valores únicos de las ofertas existentes"""
+        # Obtener valores únicos para cada campo
+        ofertas = self.gestor_ofertas.cargar_ofertas()
+        
+        # Actualizar combobox de universidades
+        universidades = sorted(set(o.ies_nombre_instit for o in ofertas if o.ies_nombre_instit))
+        self.combo_universidad['values'] = universidades
+        
+        # Actualizar combobox de provincias
+        provincias = sorted(set(o.pro_nombre for o in ofertas if o.pro_nombre))
+        self.combo_provincia['values'] = provincias
+        
+        # Actualizar combobox de cantones
+        cantones = sorted(set(o.can_nombre for o in ofertas if o.can_nombre))
+        self.combo_canton['values'] = cantones
+        
+        # Actualizar combobox de parroquias
+        parroquias = sorted(set(o.prq_nombre for o in ofertas if o.prq_nombre))
+        self.combo_parroquia['values'] = parroquias
+        
+        # Actualizar combobox de carreras
+        carreras = sorted(set(o.car_nombre_carrera for o in ofertas if o.car_nombre_carrera))
+        self.combo_carrera['values'] = carreras
+        
+        # Actualizar combobox de áreas
+        areas = sorted(set(o.area_nombre for o in ofertas if o.area_nombre))
+        self.combo_area['values'] = areas
+        
+        # Actualizar combobox de subáreas
+        subareas = sorted(set(o.subarea_nombre for o in ofertas if o.subarea_nombre))
+        self.combo_subarea['values'] = subareas
+        
+        # Actualizar combobox de niveles
+        niveles = sorted(set(o.nivel for o in ofertas if o.nivel))
+        self.combo_nivel['values'] = niveles
+
+    def calcular_cupos(self):
+        """Calcula el total de cupos automáticamente"""
+        try:
+            nivelacion = int(self.var_cupos_nivelacion.get() or 0)
+            primer_semestre = int(self.var_cupos_primer_semestre.get() or 0)
+            pc = int(self.var_cupos_pc.get() or 0)
+            
+            total = nivelacion + primer_semestre + pc
+            self.var_cupos_total.set(str(total))
+            
+            # Determinar tipo de cupo
+            if nivelacion > 0 and nivelacion >= primer_semestre:
+                self.var_tipo_cupo.set("CUPOS_NIVELACIÓN")
+            elif primer_semestre > 0:
+                self.var_tipo_cupo.set("CUPOS_PRIMER_SEMESTRE")
+            else:
+                self.var_tipo_cupo.set("CUPOS_NIVELACIÓN")
+                
+        except ValueError:
+            messagebox.showerror("Error", "Los cupos deben ser números enteros")
+
+    def crear_oferta_completa(self):
+        """Crea una nueva oferta académica con todos los campos"""
+        try:
+            # Validar campos requeridos
+            campos_requeridos = [
+                ("Universidad", self.var_ies_nombre.get().strip()),
+                ("Carrera", self.var_carrera_nombre.get().strip())
+            ]
+            
+            campos_vacios = [nombre for nombre, valor in campos_requeridos if not valor]
+            if campos_vacios:
+                messagebox.showerror("Error", f"Campos obligatorios vacíos:\n{', '.join(campos_vacios)}")
+                return
+            
+            # Validar cupos
+            try:
+                nivelacion = int(self.var_cupos_nivelacion.get() or 0)
+                primer_semestre = int(self.var_cupos_primer_semestre.get() or 0)
+                pc = int(self.var_cupos_pc.get() or 0)
+                
+                if nivelacion < 0 or primer_semestre < 0 or pc < 0:
+                    messagebox.showerror("Error", "Los cupos no pueden ser negativos")
+                    return
+                    
+            except ValueError:
+                messagebox.showerror("Error", "Los cupos deben ser números enteros válidos")
+                return
+            
+            # Calcular total de cupos
+            self.calcular_cupos()
+            total_cupos = int(self.var_cupos_total.get() or 0)
+            
+            if total_cupos <= 0:
+                messagebox.showerror("Error", "El total de cupos debe ser mayor a 0")
+                return
+            
+            # Crear objeto OfertaAcademica
+            from controls.OfertaAcademica import OfertaAcademica
+            
+            nueva_oferta = OfertaAcademica(
+                ies_nombre_instit=self.var_ies_nombre.get().strip(),
+                pro_nombre=self.var_pro_nombre.get().strip() or "MANABÍ",
+                can_nombre=self.var_can_nombre.get().strip(),
+                prq_nombre=self.var_prq_nombre.get().strip(),
+                car_nombre_carrera=self.var_carrera_nombre.get().strip(),
+                area_nombre=self.var_area_nombre.get().strip(),
+                subarea_nombre=self.var_subarea_nombre.get().strip(),
+                nivel=self.var_nivel.get().strip() or "TERCER NIVEL",
+                modalidad=self.var_modalidad.get().strip() or "PRESENCIAL",
+                jornada=self.var_jornada.get().strip() or "NO APLICA JORNADA",
+                cus_cupos_nivelacion=nivelacion,
+                cus_cupos_primer_semestre=primer_semestre,
+                cus_cupos_pc=pc,
+                focalizada=self.var_focalizada.get().strip() or "N"
+            )
+            
+            # Agregar oferta usando el gestor
+            if self.gestor_ofertas.agregar_oferta(nueva_oferta):
+                messagebox.showinfo("Éxito", "Oferta académica creada correctamente")
+                self.limpiar_form_oferta()
+                self.actualizar_lista_ofertas()
+                self.actualizar_comboboxes()
+            else:
+                messagebox.showerror("Error", "No se pudo crear la oferta académica")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al crear oferta: {str(e)}")
+
+    def ver_detalles_oferta(self):
+        """Muestra los detalles completos de una oferta seleccionada"""
+        selected_item = self.tree_ofertas.selection()
+        if not selected_item:
+            messagebox.showwarning("Advertencia", "Seleccione una oferta para ver detalles")
+            return
+        
+        item = self.tree_ofertas.item(selected_item[0])
+        valores = item['values']
+        
+        if not valores or len(valores) < 10:
+            return
+        
+        oferta_id = valores[0]  # ID de la oferta
+        
+        # Buscar oferta completa por ID
+        ofertas = self.gestor_ofertas.cargar_ofertas()
+        oferta_seleccionada = None
+        
+        for oferta in ofertas:
+            if str(oferta.id_registro) == str(oferta_id):
+                oferta_seleccionada = oferta
+                break
+        
+        if not oferta_seleccionada:
+            messagebox.showerror("Error", "No se encontró la oferta seleccionada")
+            return
+        
+        # Mostrar detalles en una ventana emergente
+        ventana_detalles = tk.Toplevel(self)
+        ventana_detalles.title(f"Detalles Oferta - ID: {oferta_id}")
+        ventana_detalles.geometry("600x500")
+        ventana_detalles.config(bg="#ffffff")
+        
+        # Frame con scroll
+        main_frame = tk.Frame(ventana_detalles, bg="#ffffff")
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        canvas = tk.Canvas(main_frame, bg="#ffffff", highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg="#ffffff")
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Mostrar todos los campos
+        campos = [
+            ("ID Registro:", oferta_seleccionada.id_registro or ""),
+            ("IES ID:", oferta_seleccionada.ies_id or ""),
+            ("IES ID SNIESE:", oferta_seleccionada.ies_id_sniese or "1016"),
+            ("Universidad:", oferta_seleccionada.ies_nombre_instit or ""),
+            ("Provincia:", oferta_seleccionada.pro_nombre or ""),
+            ("Cantón:", oferta_seleccionada.can_nombre or ""),
+            ("Parroquia:", oferta_seleccionada.prq_nombre or ""),
+            ("Carrera:", oferta_seleccionada.car_nombre_carrera or ""),
+            ("Área:", oferta_seleccionada.area_nombre or ""),
+            ("Subárea:", oferta_seleccionada.subarea_nombre or ""),
+            ("Nivel:", oferta_seleccionada.nivel or ""),
+            ("Modalidad:", oferta_seleccionada.modalidad or ""),
+            ("Jornada:", oferta_seleccionada.jornada or ""),
+            ("Cupos Nivelación:", str(oferta_seleccionada.cus_cupos_nivelacion)),
+            ("Cupos Primer Semestre:", str(oferta_seleccionada.cus_cupos_primer_semestre)),
+            ("Cupos PC:", str(oferta_seleccionada.cus_cupos_pc)),
+            ("Total Cupos:", str(oferta_seleccionada.cus_total_cupos)),
+            ("Tipo de Cupo:", oferta_seleccionada.descripcion_tipo_cupo or ""),
+            ("Focalizada:", oferta_seleccionada.focalizada or "N"),
+            ("Fecha de Registro:", oferta_seleccionada.fecha_registro or "")
+        ]
+        
+        for i, (label, valor) in enumerate(campos):
+            tk.Label(scrollable_frame, text=label, bg="#ffffff", font=("Arial", 10, "bold"), 
+                    width=25, anchor="w").grid(row=i, column=0, sticky="w", pady=5, padx=5)
+            tk.Label(scrollable_frame, text=valor, bg="#ffffff", 
+                    width=40, anchor="w", relief="sunken").grid(row=i, column=1, sticky="w", pady=5, padx=5)
+        
+        # Botón cerrar
+        ttk.Button(ventana_detalles, text="Cerrar", 
+                command=ventana_detalles.destroy).pack(pady=10)
+
+    def limpiar_form_oferta(self):
+        """Limpia el formulario de oferta académica"""
+        self.var_ies_id.set("")
+        self.var_ies_id_sniese.set("1016")
+        self.var_ies_nombre.set("")
+        self.var_pro_nombre.set("MANABÍ")
+        self.var_can_nombre.set("")
+        self.var_prq_nombre.set("")
+        self.var_carrera_nombre.set("")
+        self.var_area_nombre.set("")
+        self.var_subarea_nombre.set("")
+        self.var_nivel.set("TERCER NIVEL")
+        self.var_modalidad.set("PRESENCIAL")
+        self.var_jornada.set("NO APLICA JORNADA")
+        self.var_ofa_titulo.set("")
+        self.var_ofa_id.set("")
+        self.var_cus_id.set("")
+        self.var_cupos_nivelacion.set("0")
+        self.var_cupos_primer_semestre.set("0")
+        self.var_cupos_pc.set("0")
+        self.var_cupos_total.set("0")
+        self.var_tipo_cupo.set("CUPOS_NIVELACIÓN")
+        self.var_focalizada.set("N")
+        self.var_id_registro.set("")
+
+    def actualizar_lista_ofertas(self):
+        """Actualiza la lista de ofertas en el treeview"""
+        # Limpiar treeview
+        for item in self.tree_ofertas.get_children():
+            self.tree_ofertas.delete(item)
+        
+        # Obtener y mostrar ofertas
+        ofertas = self.gestor_ofertas.cargar_ofertas()
+        
+        # Ordenar por ID de registro
+        ofertas_ordenadas = sorted(ofertas, key=lambda x: int(x.id_registro or 0) if (x.id_registro and x.id_registro.isdigit()) else 0)
+        
+        for oferta in ofertas_ordenadas:
+            # Obtener universidad y carrera separadas
+            ies_nombre = oferta.ies_nombre_instit or ""
+            carrera = oferta.car_nombre_carrera or ""
+            
+            # Si carrera está vacía pero ies_nombre contiene ambos
+            if not carrera and " " in ies_nombre:
+                # Intentar extraer la carrera del final (última palabra o palabras)
+                palabras = ies_nombre.split()
+                if len(palabras) > 2:
+                    # Suponemos que la última palabra es la carrera
+                    carrera = palabras[-1]
+                    # La universidad es todo lo demás
+                    ies_nombre = " ".join(palabras[:-1])
+            
+            # Si aún no hay carrera, usar un valor por defecto
+            if not carrera:
+                carrera = "Carrera no especificada"
+            
+            self.tree_ofertas.insert("", "end", values=(
+                oferta.id_registro or "",
+                ies_nombre[:100],  # Limitar longitud para mejor visualización
+                carrera[:80],      # Limitar longitud
+                oferta.area_nombre or "",
+                oferta.subarea_nombre or "",
+                oferta.nivel or "",
+                oferta.modalidad or "",
+                oferta.jornada or "",
+                str(oferta.cus_total_cupos),
+                oferta.focalizada or "N"
+            ))
     
     # ─────────────────────────────
     # MÉTODOS PARA PERÍODOS

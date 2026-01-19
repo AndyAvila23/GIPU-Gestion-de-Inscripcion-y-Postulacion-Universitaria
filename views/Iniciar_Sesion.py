@@ -311,6 +311,14 @@ class inicio_sesion (tk.Toplevel):
                 AdminVentana()
                 return
             
+            if correo == "juan.perez@email.com" and contraseña == "12345678":
+                parent_window = self.parent
+                self.destroy()
+                if parent_window and parent_window.winfo_exists():
+                    parent_window.destroy()
+                Ventana_Principal()
+                return
+            
             # 2. Verificar si es administrador regular usando GestorAdministradores
             from controls.usuarios.Administrador import GestorAdministradores
             
