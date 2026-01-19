@@ -164,3 +164,8 @@ class Estudiante(Usuario):
         except Exception as e:
             print(f"Error al guardar usuario: {e}")
             return False
+        
+    def autenticar(self, contraseña: str) -> bool:
+        
+        es_valido, _ = self.verificar_credenciales(self.email, contraseña)
+        return es_valido

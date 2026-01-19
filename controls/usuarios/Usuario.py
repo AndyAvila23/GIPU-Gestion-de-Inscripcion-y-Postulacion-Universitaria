@@ -1,99 +1,57 @@
-from abc import ABC
+
+from abc import ABC, abstractmethod
 import csv
 import os
 
 class Usuario(ABC):
-    def __init__(self, id_usuario=None, nombre=None, apellido=None, CI=None, email=None, contrasena=None):
-        self.id_usuario = id_usuario
-        self.nombre = nombre
-        self.apellido = apellido
-        self.CI = CI
-        self.email = email
-        self.contrasena = contrasena
+    def __init__(self, id_usuario=None, nombre=None, apellido=None, CI=None, email=None, contraseña=None):
+        # Atributos privados/protegidos
+        self._id_usuario = id_usuario
+        self._nombre = nombre
+        self._apellido = apellido
+        self._CI = CI
+        self._email = email
+        self._contrasena = contraseña
     
-    @staticmethod
-    def verificar_registro_unico(email):
-        """Verifica si el email existe en Registro_Unico.csv y tiene estado 'Completo'"""
-        try:
-            if not os.path.exists("Registro_Unico.csv"):
-                return False
-            
-            with open("Registro_Unico.csv", 'r', encoding='utf-8') as file:
-                reader = csv.reader(file, delimiter=';')
-                headers = next(reader)  # Saltar encabezados
-                
-                # Buscar índices de las columnas necesarias
-                correo_index = headers.index('correo') if 'correo' in headers else -1
-                estado_index = headers.index('estado') if 'estado' in headers else -1
-                
-                if correo_index == -1 or estado_index == -1:
-                    return False
-                
-                for row in reader:
-                    if len(row) > max(correo_index, estado_index):
-                        correo_registro = row[correo_index].strip().lower()
-                        estado = row[estado_index].strip()
-                        
-                        if correo_registro == email.lower() and estado.upper() == "COMPLETO":
-                            return True
-            return False
-        except Exception as e:
-            print(f"Error al verificar registro único: {e}")
-            return False
+    # Getters y Setters (propiedades)
+    @property
+    def nombre(self):
+        return self._nombre
     
-    @staticmethod
-    def guardar_usuario_registrado(tipo_documento, identificacion, correo, nombres, apellidos, contraseña):
-        """Guarda un nuevo usuario en usuarios_registrados.csv"""
-        try:
-            # Verificar si el archivo existe
-            file_exists = os.path.exists("usuarios_registrados.csv")
-            
-            with open("usuarios_registrados.csv", 'a', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                
-                # Escribir encabezados si el archivo no existe
-                if not file_exists:
-                    writer.writerow(['tipoDocumento', 'identificacion', 'correo', 'nombres', 'apellidos', 'contraseña'])
-                
-                # Escribir datos del usuario
-                writer.writerow([tipo_documento, identificacion, correo, nombres, apellidos, contraseña])
-            
-            return True
-        except Exception as e:
-            print(f"Error al guardar usuario: {e}")
-            return False
+    @nombre.setter
+    def nombre(self, value):
+        self._nombre = value
     
+    @property
+    def email(self):
+        return self._email
+    
+    @email.setter
+    def email(self, value):
+        # Validación podría ir aquí
+        self._email = value
+    
+    # Método abstracto (debe implementarse en subclases)
+    @abstractmethod
+    def autenticar(self, contrasena: str) -> bool:
+        pass
+    
+    # Método privado para uso interno
+    def _validar_email(self, email: str) -> bool:
+        return "@" in email and "." in email
+    
+    # Método protegido (para uso de subclases)
+    def _generar_id_unico(self) -> str:
+        import uuid
+        return str(uuid.uuid4())[:8]
+    
+    # Método estático (no accede a estado de instancia)
     @staticmethod
-    def obtener_datos_registro_unico(email):
-        """Obtiene los datos del usuario desde Registro_Unico.csv"""
+    def _leer_csv(ruta_archivo: str) -> list:
         try:
-            if not os.path.exists("Registro_Unico.csv"):
-                return None
-            
-            with open("Registro_Unico.csv", 'r', encoding='utf-8') as file:
-                reader = csv.reader(file, delimiter=';')
-                headers = next(reader)
-                
-                # Buscar índices de las columnas necesarias
-                tipo_doc_index = headers.index('tipoDocumento') if 'tipoDocumento' in headers else -1
-                ident_index = headers.index('identificacion') if 'identificacion' in headers else -1
-                correo_index = headers.index('correo') if 'correo' in headers else -1
-                nombres_index = headers.index('nombres') if 'nombres' in headers else -1
-                apellidos_index = headers.index('apellidos') if 'apellidos' in headers else -1
-                
-                for row in reader:
-                    if len(row) > max(tipo_doc_index, ident_index, correo_index, nombres_index, apellidos_index):
-                        correo_registro = row[correo_index].strip().lower()
-                        
-                        if correo_registro == email.lower():
-                            return {
-                                'tipoDocumento': row[tipo_doc_index],
-                                'identificacion': row[ident_index],
-                                'correo': row[correo_index],
-                                'nombres': row[nombres_index],
-                                'apellidos': row[apellidos_index]
-                            }
-            return None
+            with open(ruta_archivo, 'r', encoding='utf-8') as file:
+                reader = csv.DictReader(file)
+                return list(reader)
         except Exception as e:
-            print(f"Error al obtener datos: {e}")
-            return None
+            print(f"Error al leer archivo: {e}")
+            return []

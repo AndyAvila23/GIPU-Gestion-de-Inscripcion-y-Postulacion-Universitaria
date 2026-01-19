@@ -2,19 +2,20 @@ import json
 import os
 import csv
 from datetime import datetime
+from .Usuario import Usuario
 
-class Administrador:
+class Administrador(Usuario):
     def __init__(self, CI="", Nombre="", Apellido="", Correo="", Contraseña="", 
                  Dirección=".", Teléfono=".", Género="Prefiero no decirlo", Rol="Sistema"):
         self.CI = CI
         self.Nombre = Nombre
         self.Apellido = Apellido
         self.Correo = Correo
-        self.Contraseña = Contraseña
+        self._Contraseña = Contraseña
         self.Dirección = Dirección
         self.Teléfono = Teléfono
         self.Género = Género
-        self.Rol = Rol
+        self._Rol = Rol
     
     def to_dict(self):
         """Convierte el administrador a diccionario"""
@@ -23,11 +24,11 @@ class Administrador:
             "Nombre": self.Nombre,
             "Apellido": self.Apellido,
             "Correo": self.Correo,
-            "Contraseña": self.Contraseña,
+            "Contraseña": self._Contraseña,
             "Dirección": self.Dirección,
             "Teléfono": self.Teléfono,
             "Género": self.Género,
-            "Rol": self.Rol
+            "Rol": self._Rol
         }
     
     @staticmethod
@@ -38,11 +39,11 @@ class Administrador:
             Nombre=data.get("Nombre", ""),
             Apellido=data.get("Apellido", ""),
             Correo=data.get("Correo", ""),
-            Contraseña=data.get("Contraseña", ""),
+            _Contraseña=data.get("Contraseña", ""),
             Dirección=data.get("Dirección", "."),
             Teléfono=data.get("Teléfono", "."),
             Género=data.get("Género", "Prefiero no decirlo"),
-            Rol=data.get("Rol", "Sistema")
+            _Rol=data.get("Rol", "Sistema")
         )
 
 class GestorAdministradores:
@@ -61,11 +62,11 @@ class GestorAdministradores:
                 Nombre="Admin",
                 Apellido="Sistema",
                 Correo="admin@system.com",
-                Contraseña="admin",
+                _Contraseña="admin",
                 Dirección=".",
                 Teléfono=".",
                 Género="Prefiero no decirlo",
-                Rol="Sistema"
+                _Rol="Sistema"
             )
             
             with open(self.admin_file, 'w', encoding='utf-8') as f:
@@ -146,11 +147,11 @@ class GestorAdministradores:
                 Nombre=datos_admin.get('Nombre', ''),
                 Apellido=datos_admin.get('Apellido', ''),
                 Correo=datos_admin.get('Correo', ''),
-                Contraseña=datos_admin.get('Contraseña', ''),
+                _Contraseña=datos_admin.get('Contraseña', ''),
                 Dirección=datos_admin.get('Dirección', '.'),
                 Teléfono=datos_admin.get('Teléfono', '.'),
                 Género=datos_admin.get('Género', 'Prefiero no decirlo'),
-                Rol=datos_admin.get('Rol', 'Administrador')
+                _Rol=datos_admin.get('Rol', 'Administrador')
             )
             
             administradores.append(nuevo_admin)
@@ -174,11 +175,11 @@ class GestorAdministradores:
                     administradores[i].Nombre = datos_admin.get('Nombre', admin.Nombre)
                     administradores[i].Apellido = datos_admin.get('Apellido', admin.Apellido)
                     administradores[i].Correo = datos_admin.get('Correo', admin.Correo)
-                    administradores[i].Contraseña = datos_admin.get('Contraseña', admin.Contraseña)
+                    administradores[i]._Contraseña = datos_admin.get('Contraseña', admin._Contraseña)
                     administradores[i].Dirección = datos_admin.get('Dirección', admin.Dirección)
                     administradores[i].Teléfono = datos_admin.get('Teléfono', admin.Teléfono)
                     administradores[i].Género = datos_admin.get('Género', admin.Género)
-                    administradores[i].Rol = datos_admin.get('Rol', admin.Rol)
+                    administradores[i]._Rol = datos_admin.get('Rol', admin.Rol)
                     
                     if self._escribir_admin_json(administradores):
                         return True, f"Administrador {administradores[i].Nombre} modificado exitosamente"
@@ -222,7 +223,7 @@ class GestorAdministradores:
         administradores = self._leer_admin_json()
         
         for admin in administradores:
-            if admin.Correo.lower() == correo.lower() and admin.Contraseña == contraseña:
+            if admin.Correo.lower() == correo.lower() and admin._Contraseña == contraseña:
                 return True, admin
         
         return False, None
@@ -242,7 +243,7 @@ class GestorAdministradores:
             
             for i, admin in enumerate(administradores):
                 if admin.CI == ci:
-                    administradores[i].Contraseña = nueva_contraseña
+                    administradores[i]._Contraseña = nueva_contraseña
                     
                     if self._escribir_admin_json(administradores):
                         return True, "Contraseña cambiada exitosamente"
@@ -253,3 +254,8 @@ class GestorAdministradores:
                 
         except Exception as e:
             return False, f"Error al cambiar contraseña: {str(e)}"
+
+class Administrador(Usuario):
+    
+    def autenticar(self, contraseña: str) -> bool:
+        return self.Contraseña == contraseña
